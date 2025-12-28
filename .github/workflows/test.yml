@@ -44,7 +44,20 @@ jobs:
 
       - name: Configurar ambiente
         run: |
-          cp .env.example .env
+          cat > .env << EOF
+          APP_NAME="Pizzaria do Cuca"
+          APP_ENV=testing
+          APP_KEY=
+          APP_DEBUG=true
+          APP_URL=http://localhost
+          
+          DB_CONNECTION=mysql
+          DB_HOST=127.0.0.1
+          DB_PORT=3306
+          DB_DATABASE=pizzaria_do_cuca
+          DB_USERNAME=pizzaria_user
+          DB_PASSWORD=root
+          EOF
           php artisan key:generate
 
       - name: Executar migrações
