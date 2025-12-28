@@ -1,0 +1,84 @@
+name: Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  phpunit:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: pizzaria_do_cuca
+          MYSQL_USER: pizzaria_user
+          MYSQL_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configurar PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          extensions: mbstring, xml, bcmath, pdo_mysql, gd, zip
+
+      - name: Cache dependências do Composer
+        uses: actions/cache@v3
+        with:
+          path: ~/.composer/cache
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Instalar dependências
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Configurar ambiente
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Executar migrações
+        run: php artisan migrate --force
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: pizzaria_do_cuca
+          DB_USERNAME: pizzaria_user
+          DB_PASSWORD: root
+
+      - name: Executar testes
+        run: php artisan test
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: pizzaria_do_cuca
+          DB_USERNAME: pizzaria_user
+          DB_PASSWORD: root
+
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build e testar Docker
+        run: |
+          docker compose build
+          docker compose up -d
+          sleep 15
+          docker compose exec -T app php artisan migrate --force || true
+          docker compose ps
+          docker compose logs
+          docker compose down 
